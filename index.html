@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>อุทยานแห่งชาติไทย</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- ===== Screen: Title ===== -->
+  <div id="screen-title" class="screen active">
+    <div class="title-container">
+      <div class="title-icon">🏞️</div>
+      <h1>อุทยานแห่งชาติไทย</h1>
+      <p class="subtitle">เกมสะสมการ์ดอุทยาน — สำรวจ สะสม ทำคะแนน</p>
+      <div class="title-regions">
+        <span class="region-badge north">เหนือ</span>
+        <span class="region-badge isan">อีสาน</span>
+        <span class="region-badge central">กลาง</span>
+        <span class="region-badge south">ใต้</span>
+      </div>
+      <button id="btn-start" class="btn btn-primary btn-large">เริ่มเกม</button>
+      <button id="btn-how-to-play" class="btn btn-secondary">วิธีเล่น</button>
+    </div>
+  </div>
+
+  <!-- ===== Screen: Mission Select ===== -->
+  <div id="screen-mission" class="screen">
+    <div class="mission-container">
+      <h2>เลือกภารกิจ 2 ใบ</h2>
+      <p class="hint">ภารกิจเป็นเป้าหมายลับ ทำสำเร็จได้คะแนนโบนัส</p>
+      <div id="mission-candidates" class="mission-cards"></div>
+      <div class="mission-footer">
+        <span id="mission-count">เลือกแล้ว 0/2</span>
+        <button id="btn-confirm-missions" class="btn btn-primary" disabled>ยืนยัน</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Screen: Game Board ===== -->
+  <div id="screen-game" class="screen">
+    <!-- Top Bar -->
+    <div class="top-bar">
+      <div class="turn-info">
+        <span id="turn-label">เทิร์น 1/12</span>
+        <span id="phase-label" class="phase-badge">เลือกการกระทำ</span>
+      </div>
+      <div id="resource-bar" class="resource-bar"></div>
+    </div>
+
+    <!-- Ongoing Bonus Banner -->
+    <div id="bonus-banner" class="bonus-banner hidden"></div>
+
+    <!-- Market -->
+    <div class="section">
+      <h3 class="section-title">🗺️ กองกลาง</h3>
+      <div id="market" class="market"></div>
+    </div>
+
+    <!-- Actions -->
+    <div class="action-bar">
+      <button id="btn-gather" class="btn btn-action">
+        <span class="btn-icon">🎒</span>
+        <span>เก็บทรัพยากร</span>
+      </button>
+      <button id="btn-visit" class="btn btn-action" disabled>
+        <span class="btn-icon">🏕️</span>
+        <span>สำรวจอุทยาน</span>
+      </button>
+    </div>
+
+    <!-- Player Collection -->
+    <div class="section">
+      <h3 class="section-title">📋 อุทยานของฉัน <span id="park-count">(0 ใบ)</span></h3>
+      <div id="player-parks" class="player-parks"></div>
+    </div>
+
+    <!-- Missions -->
+    <div class="section missions-section">
+      <h3 class="section-title">🎯 ภารกิจ</h3>
+      <div id="player-missions" class="player-missions"></div>
+    </div>
+  </div>
+
+  <!-- ===== Screen: Game Over ===== -->
+  <div id="screen-gameover" class="screen">
+    <div class="gameover-container">
+      <div id="rank-display" class="rank-display"></div>
+      <h2>จบเกม!</h2>
+      <div id="score-breakdown" class="score-breakdown"></div>
+      <div id="final-score" class="final-score"></div>
+      <button id="btn-replay" class="btn btn-primary btn-large">เล่นอีกครั้ง</button>
+    </div>
+  </div>
+
+  <!-- ===== Modal: Gather Resources ===== -->
+  <div id="modal-gather" class="modal hidden">
+    <div class="modal-content">
+      <h3>เก็บทรัพยากร</h3>
+      <div class="gather-modes">
+        <button class="btn gather-mode active" data-mode="diverse">3 ชิ้นต่างชนิด</button>
+        <button class="btn gather-mode" data-mode="focused">2 ชิ้นเดียวกัน</button>
+      </div>
+      <div id="gather-picker" class="resource-picker"></div>
+      <div class="gather-selected">
+        <span>เลือกแล้ว: </span>
+        <span id="gather-preview"></span>
+      </div>
+      <div class="modal-actions">
+        <button id="btn-gather-cancel" class="btn btn-secondary">ยกเลิก</button>
+        <button id="btn-gather-confirm" class="btn btn-primary" disabled>ยืนยัน</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal: Effect Resolution ===== -->
+  <div id="modal-effect" class="modal hidden">
+    <div class="modal-content">
+      <h3 id="effect-title"></h3>
+      <p id="effect-desc"></p>
+      <div id="effect-choices"></div>
+      <div class="modal-actions">
+        <button id="btn-effect-confirm" class="btn btn-primary" disabled>ยืนยัน</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal: How To Play ===== -->
+  <div id="modal-rules" class="modal hidden">
+    <div class="modal-content modal-large">
+      <h3>วิธีเล่น</h3>
+      <div class="rules-content">
+        <h4>เป้าหมาย</h4>
+        <p>สำรวจอุทยานแห่งชาติทั่วไทยให้ได้คะแนนมากที่สุดใน 12 เทิร์น</p>
+
+        <h4>ทรัพยากร 4 ชนิด</h4>
+        <p>🌳 ป่า &nbsp; 🌊 น้ำ &nbsp; ⛰️ เขา &nbsp; ☀️ กิจกรรม<br>ถือได้สูงสุด 8 ชิ้น</p>
+
+        <h4>แต่ละเทิร์น</h4>
+        <p><strong>1. รับโบนัส</strong> จากอุทยานที่มี Ongoing Effect</p>
+        <p><strong>2. เลือกทำ 1 อย่าง:</strong></p>
+        <ul>
+          <li>🎒 <strong>เก็บทรัพยากร</strong> — หยิบ 3 ชิ้นต่างชนิด หรือ 2 ชิ้นเดียวกัน</li>
+          <li>🏕️ <strong>สำรวจอุทยาน</strong> — จ่ายทรัพยากรตาม Cost, หยิบการ์ด 1 ใบจากกองกลาง</li>
+        </ul>
+
+        <h4>คะแนน</h4>
+        <p>ดาวบนการ์ด (★ = 1, ★★ = 2, ★★★ = 3, ★★★★ = 4) + โบนัสจาก Effect + ภารกิจ</p>
+      </div>
+      <button id="btn-close-rules" class="btn btn-primary">เข้าใจแล้ว</button>
+    </div>
+  </div>
+
+  <script src="js/data.js"></script>
+  <script src="js/effects.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/ui.js"></script>
+</body>
+</html>
