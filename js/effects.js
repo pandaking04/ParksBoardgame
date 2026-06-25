@@ -20,27 +20,43 @@ function applyOngoingEffects(state) {
   return descriptions;
 }
 
-function getEffectiveCost(park, playerParks) {
+function getEffectiveCost(park, playerParks, turn, playerGears) {
   const cost = { ...park.cost };
-  const hasDiscount = playerParks.some(p =>
-    p.effects.includes("O4") && p.region === park.region
-  );
+  const order = ["activity", "mountain", "water", "forest"];
 
-  if (hasDiscount) {
-    let reduced = false;
-    const order = ["activity", "mountain", "water", "forest"];
+  let discounts = 0;
+
+  // O4 ไกด์ท้องถิ่น — ลด 1 ถ้าภาคเดียวกัน
+  if (playerParks.some(p => p.effects.includes("O4") && p.region === park.region)) {
+    discounts++;
+  }
+
+  // ฤดูกาล — ลด 1 ถ้าภาคตรงกับ bonusRegion
+  if (turn) {
+    const season = getCurrentSeason(turn);
+    if (park.region === season.bonusRegion) discounts++;
+  }
+
+  // เข็มทิศ — ลด 1 ทุกอุทยาน
+  if (playerGears && playerGears.some(g => g.effectType === "cost_discount")) {
+    discounts++;
+  }
+
+  for (let d = 0; d < discounts; d++) {
     for (const r of order) {
       if (cost[r] > 0) {
         cost[r]--;
-        reduced = true;
         break;
       }
     }
-    const total = RESOURCES.reduce((sum, r) => sum + cost[r], 0);
-    if (total < 1 && reduced) {
-      cost[order.find(r => park.cost[r] > 0) || "forest"]++;
-    }
   }
+
+  // ขั้นต่ำ cost รวม = 1
+  const total = RESOURCES.reduce((sum, r) => sum + cost[r], 0);
+  if (total < 1) {
+    cost[order.find(r => park.cost[r] > 0) || "forest"]++;
+  }
+
   return cost;
 }
 

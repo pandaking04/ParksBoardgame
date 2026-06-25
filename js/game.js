@@ -13,7 +13,9 @@ function createInitialState() {
       parks: [],
       missions: [],
       missionCandidates: [],
+      gears: [],
     },
+    gearShop: [],
     turnPhase: "bonus",
     pendingEffect: null,
     selectedMarketIndex: -1,
@@ -38,33 +40,49 @@ function initGame() {
   gameState.deck = shuffle(PARKS);
   gameState.market = gameState.deck.splice(0, MARKET_SIZE);
   gameState.player.missionCandidates = shuffle([...MISSIONS]).slice(0, 3);
+  gameState.gearShop = [...GEARS];
   gameState.phase = "mission_select";
 }
 
+function getEffectiveMarketSize() {
+  if (gameState.player.gears.some(g => g.effectType === "market_size")) return 4;
+  return MARKET_SIZE;
+}
+
 function refillMarket() {
-  while (gameState.market.length < MARKET_SIZE && gameState.deck.length > 0) {
+  const size = getEffectiveMarketSize();
+  while (gameState.market.length < size && gameState.deck.length > 0) {
     gameState.market.push(gameState.deck.shift());
   }
 }
 
 // ===== Resources =====
 
+function getEffectiveMaxResources() {
+  if (gameState.player.gears.some(g => g.effectType === "max_resources")) return MAX_RESOURCES + 2;
+  return MAX_RESOURCES;
+}
+
 function getResourceTotal(resources) {
   return RESOURCES.reduce((sum, r) => sum + resources[r], 0);
 }
 
 function enforceResourceCap(state) {
+  const cap = getEffectiveMaxResources();
   const total = getResourceTotal(state.player.resources);
-  if (total > MAX_RESOURCES) {
-    const excess = total - MAX_RESOURCES;
-    return excess;
+  if (total > cap) {
+    return total - cap;
   }
   return 0;
 }
 
 function canAfford(park) {
-  const cost = getEffectiveCost(park, gameState.player.parks);
+  const cost = getEffectiveCost(park, gameState.player.parks, gameState.turn, gameState.player.gears);
   return RESOURCES.every(r => gameState.player.resources[r] >= cost[r]);
+}
+
+function canAffordGear(gear) {
+  return RESOURCES.every(r => gameState.player.resources[r] >= gear.cost[r]);
 }
 
 function payResources(cost) {
@@ -75,14 +93,19 @@ function payResources(cost) {
 
 // ===== Gather =====
 
+function getGatherMax(mode) {
+  const bonus = gameState.player.gears.some(g => g.effectType === "gather_bonus") ? 1 : 0;
+  return (mode === "diverse" ? 3 : 2) + bonus;
+}
+
 function validateGather(picks, mode) {
+  const max = getGatherMax(mode);
+  if (picks.length !== max) return false;
   if (mode === "diverse") {
-    if (picks.length !== 3) return false;
     const unique = new Set(picks);
-    return unique.size === 3;
+    return unique.size === picks.length;
   } else {
-    if (picks.length !== 2) return false;
-    return picks[0] === picks[1];
+    return picks.every(p => p === picks[0]);
   }
 }
 
@@ -97,7 +120,7 @@ function visitPark(marketIndex) {
   const park = gameState.market[marketIndex];
   if (!park) return null;
 
-  const cost = getEffectiveCost(park, gameState.player.parks);
+  const cost = getEffectiveCost(park, gameState.player.parks, gameState.turn, gameState.player.gears);
   if (!RESOURCES.every(r => gameState.player.resources[r] >= cost[r])) return null;
 
   payResources(cost);
@@ -105,8 +128,27 @@ function visitPark(marketIndex) {
   gameState.market.splice(marketIndex, 1);
   refillMarket();
 
+  const hasRefund = gameState.player.gears.some(g => g.effectType === "visit_refund");
   const instantEffects = park.effects.filter(e => e.startsWith("I"));
-  return { park, instantEffects };
+  return { park, instantEffects, hasRefund };
+}
+
+// ===== Gear =====
+
+function purchaseGear(gearId) {
+  const idx = gameState.gearShop.findIndex(g => g.id === gearId);
+  if (idx < 0) return null;
+
+  const gear = gameState.gearShop[idx];
+  if (!canAffordGear(gear)) return null;
+
+  payResources(gear.cost);
+  gameState.player.gears.push(gear);
+  gameState.gearShop.splice(idx, 1);
+
+  if (gear.effectType === "market_size") refillMarket();
+
+  return gear;
 }
 
 // ===== Turn Management =====
@@ -122,6 +164,15 @@ function selectMissions(indices) {
 function startTurn() {
   gameState.turnPhase = "bonus";
   const descriptions = applyOngoingEffects(gameState);
+
+  // โบนัสฤดูกาล
+  const season = getCurrentSeason(gameState.turn);
+  let seasonAmount = 1;
+  if (gameState.player.gears.some(g => g.effectType === "season_double")) seasonAmount = 2;
+  gameState.player.resources[season.bonusResource] += seasonAmount;
+  descriptions.push(`${season.icon} ${season.name}: +${seasonAmount}${RESOURCE_EMOJI[season.bonusResource]}`);
+  enforceResourceCap(gameState);
+
   gameState.turnPhase = "choose_action";
   return descriptions;
 }

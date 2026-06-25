@@ -46,10 +46,14 @@
     <div class="top-bar">
       <div class="turn-info">
         <span id="turn-label">เทิร์น 1/12</span>
+        <span id="season-label" class="season-badge">❄️ ฤดูหนาว</span>
         <span id="phase-label" class="phase-badge">เลือกการกระทำ</span>
       </div>
       <div id="resource-bar" class="resource-bar"></div>
     </div>
+
+    <!-- Season Info Banner -->
+    <div id="season-banner" class="season-banner hidden"></div>
 
     <!-- Ongoing Bonus Banner -->
     <div id="bonus-banner" class="bonus-banner hidden"></div>
@@ -58,6 +62,12 @@
     <div class="section">
       <h3 class="section-title">🗺️ กองกลาง</h3>
       <div id="market" class="market"></div>
+    </div>
+
+    <!-- Gear Shop -->
+    <div class="section">
+      <h3 class="section-title">🎒 ร้านอุปกรณ์ <span id="gear-shop-count"></span></h3>
+      <div id="gear-shop" class="gear-shop"></div>
     </div>
 
     <!-- Actions -->
@@ -70,12 +80,22 @@
         <span class="btn-icon">🏕️</span>
         <span>สำรวจอุทยาน</span>
       </button>
+      <button id="btn-buy-gear" class="btn btn-action" disabled>
+        <span class="btn-icon">🛒</span>
+        <span>ซื้ออุปกรณ์</span>
+      </button>
     </div>
 
     <!-- Player Collection -->
     <div class="section">
       <h3 class="section-title">📋 อุทยานของฉัน <span id="park-count">(0 ใบ)</span></h3>
       <div id="player-parks" class="player-parks"></div>
+    </div>
+
+    <!-- Player Gears -->
+    <div class="section" id="player-gears-section">
+      <h3 class="section-title">🧰 อุปกรณ์ของฉัน <span id="gear-count">(0 ชิ้น)</span></h3>
+      <div id="player-gears" class="player-gears"></div>
     </div>
 
     <!-- Missions -->
@@ -124,6 +144,31 @@
       <div id="effect-choices"></div>
       <div class="modal-actions">
         <button id="btn-effect-confirm" class="btn btn-primary" disabled>ยืนยัน</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal: Buy Gear ===== -->
+  <div id="modal-gear" class="modal hidden">
+    <div class="modal-content">
+      <h3>🛒 ซื้ออุปกรณ์</h3>
+      <p class="hint">เลือกอุปกรณ์ 1 ชิ้น (ใช้ทรัพยากรจ่าย)</p>
+      <div id="gear-choices" class="gear-choices"></div>
+      <div class="modal-actions">
+        <button id="btn-gear-cancel" class="btn btn-secondary">ยกเลิก</button>
+        <button id="btn-gear-confirm" class="btn btn-primary" disabled>ซื้อ</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== Modal: Visit Refund ===== -->
+  <div id="modal-refund" class="modal hidden">
+    <div class="modal-content">
+      <h3>📷 กล้องถ่ายรูป</h3>
+      <p>เลือกทรัพยากร 1 ชิ้นที่ต้องการรับคืน</p>
+      <div id="refund-choices" class="resource-picker"></div>
+      <div class="modal-actions">
+        <button id="btn-refund-confirm" class="btn btn-primary" disabled>ยืนยัน</button>
       </div>
     </div>
   </div>

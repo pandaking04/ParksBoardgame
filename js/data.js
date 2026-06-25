@@ -19,7 +19,7 @@ const TIER_COLORS = {
 };
 
 const MAX_RESOURCES = 8;
-const MAX_TURNS = 12;
+const MAX_TURNS = 20;
 const MARKET_SIZE = 3;
 
 const SOLO_RANKS = [
@@ -176,6 +176,30 @@ const MISSIONS = [
   { id: "M18", name: "สี่ภาค สี่ดาว", difficulty: "hard", bonus: 7, desc: "มี ★★★★ จาก 2 ภาคที่ต่างกัน", checkType: "tier4_multi_region", params: { regionsNeeded: 2 } },
   { id: "M19", name: "นักสำรวจผู้ยิ่งใหญ่", difficulty: "hard", bonus: 7, desc: "สำรวจรวม ≥ 9 ใบ", checkType: "total_parks", params: { min: 9 } },
   { id: "M20", name: "เส้นทางในฝัน", difficulty: "hard", bonus: 7, desc: "มี ★★★★ + ★ จากภาคเดียวกัน ≥ 3 ใบ", checkType: "tier4_plus_tier1_region", params: { tier1Min: 3 } },
+];
+
+// ===== Seasons (4 ฤดู × 3 เทิร์น = 12 เทิร์น) =====
+
+const SEASONS = [
+  { id: "winter",  name: "ฤดูหนาว",      icon: "❄️", turns: [1,2,3],    bonusResource: "mountain", bonusRegion: "เหนือ" },
+  { id: "summer",  name: "ฤดูร้อน",      icon: "🔥", turns: [4,5,6],    bonusResource: "activity", bonusRegion: "ใต้" },
+  { id: "rainy",   name: "ฤดูฝน",        icon: "🌧️", turns: [7,8,9],    bonusResource: "water",    bonusRegion: "กลาง" },
+  { id: "harvest", name: "ฤดูเก็บเกี่ยว", icon: "🍂", turns: [10,11,12], bonusResource: "forest",   bonusRegion: "อีสาน" },
+];
+
+function getCurrentSeason(turn) {
+  return SEASONS.find(s => s.turns.includes(turn)) || SEASONS[0];
+}
+
+// ===== Gear (อุปกรณ์) =====
+
+const GEARS = [
+  { id: "G1", name: "เต็นท์พกพา",     icon: "⛺", cost: { forest: 1, water: 0, mountain: 0, activity: 1 }, desc: "ถือทรัพยากรสูงสุด +2 (เป็น 10)", effectType: "max_resources" },
+  { id: "G2", name: "แผนที่เดินป่า",   icon: "🗺️", cost: { forest: 1, water: 0, mountain: 1, activity: 0 }, desc: "กองกลางเพิ่มเป็น 4 ใบ",         effectType: "market_size" },
+  { id: "G3", name: "เข็มทิศ",         icon: "🧭", cost: { forest: 0, water: 0, mountain: 1, activity: 1 }, desc: "ลด cost อุทยานทั้งหมด 1 ชิ้น",   effectType: "cost_discount" },
+  { id: "G4", name: "รองเท้าเดินป่า",   icon: "🥾", cost: { forest: 0, water: 0, mountain: 2, activity: 0 }, desc: "เก็บทรัพยากร +1 ชิ้น",           effectType: "gather_bonus" },
+  { id: "G5", name: "กล้องถ่ายรูป",     icon: "📷", cost: { forest: 0, water: 0, mountain: 0, activity: 2 }, desc: "สำรวจอุทยาน ได้ทรัพยากรคืน 1",   effectType: "visit_refund" },
+  { id: "G6", name: "คู่มือท่องเที่ยว",  icon: "📖", cost: { forest: 1, water: 1, mountain: 0, activity: 0 }, desc: "โบนัสฤดูกาลต้นเทิร์น ×2",       effectType: "season_double" },
 ];
 
 // ===== Data Validation =====

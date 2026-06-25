@@ -29,8 +29,11 @@ function setupEventListeners() {
   document.getElementById("btn-confirm-missions").addEventListener("click", onConfirmMissions);
   document.getElementById("btn-gather").addEventListener("click", onOpenGather);
   document.getElementById("btn-visit").addEventListener("click", onVisitPark);
+  document.getElementById("btn-buy-gear").addEventListener("click", onOpenGearModal);
   document.getElementById("btn-gather-cancel").addEventListener("click", () => hideModal("modal-gather"));
   document.getElementById("btn-gather-confirm").addEventListener("click", onConfirmGather);
+  document.getElementById("btn-gear-cancel").addEventListener("click", () => hideModal("modal-gear"));
+  document.getElementById("btn-gear-confirm").addEventListener("click", onConfirmGear);
   document.getElementById("btn-replay").addEventListener("click", onStartGame);
 
   document.querySelectorAll(".gather-mode").forEach(btn => {
@@ -102,8 +105,11 @@ function onConfirmMissions() {
 function render() {
   renderTurnInfo();
   renderResourceBar();
+  renderSeasonInfo();
   renderMarket();
+  renderGearShop();
   renderPlayerParks();
+  renderPlayerGears();
   renderPlayerMissions();
   updateActionButtons();
 }
@@ -111,6 +117,9 @@ function render() {
 function renderTurnInfo() {
   const turn = Math.min(gameState.turn, MAX_TURNS);
   document.getElementById("turn-label").textContent = `เทิร์น ${turn}/${MAX_TURNS}`;
+
+  const season = getCurrentSeason(gameState.turn);
+  document.getElementById("season-label").textContent = `${season.icon} ${season.name}`;
 
   const phaseLabel = document.getElementById("phase-label");
   if (gameState.turnPhase === "choose_action") {
@@ -124,10 +133,64 @@ function renderResourceBar() {
   const bar = document.getElementById("resource-bar");
   const res = gameState.player.resources;
   const total = getResourceTotal(res);
+  const cap = getEffectiveMaxResources();
 
   bar.innerHTML = RESOURCES.map(r =>
     `<span class="resource-item">${RESOURCE_EMOJI[r]} <strong>×${res[r]}</strong></span>`
-  ).join("") + `<span class="resource-total">(${total}/${MAX_RESOURCES})</span>`;
+  ).join("") + `<span class="resource-total">(${total}/${cap})</span>`;
+}
+
+function renderSeasonInfo() {
+  const season = getCurrentSeason(gameState.turn);
+  const banner = document.getElementById("season-banner");
+  banner.textContent = `${season.icon} ${season.name} — เก็บ +${RESOURCE_EMOJI[season.bonusResource]} ต้นเทิร์น | ภาค${season.bonusRegion} ลด cost 1`;
+  banner.classList.remove("hidden");
+}
+
+function renderGearShop() {
+  const container = document.getElementById("gear-shop");
+  const countSpan = document.getElementById("gear-shop-count");
+  const shop = gameState.gearShop;
+
+  countSpan.textContent = `(${shop.length} ชิ้น)`;
+
+  if (shop.length === 0) {
+    container.innerHTML = '<div class="player-gears-empty">หมดแล้ว</div>';
+    return;
+  }
+
+  container.innerHTML = "";
+  shop.forEach(gear => {
+    const affordable = canAffordGear(gear);
+    const costEmoji = RESOURCES.map(r => RESOURCE_EMOJI[r].repeat(gear.cost[r])).join("");
+    const card = document.createElement("div");
+    card.className = "gear-card" + (affordable ? "" : " unaffordable");
+    card.innerHTML = `
+      <div class="gear-icon">${gear.icon}</div>
+      <div class="gear-name">${gear.name}</div>
+      <div class="gear-desc">${gear.desc}</div>
+      <div class="gear-cost">${costEmoji}</div>
+    `;
+    container.appendChild(card);
+  });
+}
+
+function renderPlayerGears() {
+  const container = document.getElementById("player-gears");
+  const gears = gameState.player.gears;
+  document.getElementById("gear-count").textContent = `(${gears.length} ชิ้น)`;
+
+  if (gears.length === 0) {
+    container.innerHTML = '<div class="player-gears-empty">ยังไม่มีอุปกรณ์</div>';
+    return;
+  }
+  container.innerHTML = "";
+  gears.forEach(g => {
+    const mini = document.createElement("div");
+    mini.className = "gear-mini";
+    mini.innerHTML = `<span>${g.icon}</span> <span>${g.name}</span>`;
+    container.appendChild(mini);
+  });
 }
 
 function renderMarket() {
@@ -172,7 +235,7 @@ function createParkCard(park, mini) {
   card.dataset.region = park.region;
 
   const tierStars = "★".repeat(park.tier);
-  const cost = getEffectiveCost(park, gameState.player.parks);
+  const cost = getEffectiveCost(park, gameState.player.parks, gameState.turn, gameState.player.gears);
   const costEmoji = RESOURCES.map(r => RESOURCE_EMOJI[r].repeat(cost[r])).join("");
 
   let effectsHTML = "";
@@ -235,6 +298,10 @@ function updateActionButtons() {
   const hasSelection = gameState.selectedMarketIndex >= 0;
   const park = hasSelection ? gameState.market[gameState.selectedMarketIndex] : null;
   btnVisit.disabled = !hasSelection || !park || !canAfford(park);
+
+  const btnGear = document.getElementById("btn-buy-gear");
+  const hasAffordableGear = gameState.gearShop.some(g => canAffordGear(g));
+  btnGear.disabled = !hasAffordableGear || gameState.gearShop.length === 0;
 }
 
 // ===== Turn Flow =====
@@ -251,7 +318,7 @@ function onNewTurn() {
   if (bonusDescs.length > 0) {
     banner.textContent = "🎁 โบนัสต้นเทิร์น: " + bonusDescs.join(", ");
     banner.classList.remove("hidden");
-    setTimeout(() => banner.classList.add("hidden"), 3000);
+    setTimeout(() => banner.classList.add("hidden"), 4000);
   } else {
     banner.classList.add("hidden");
   }
@@ -280,6 +347,9 @@ function onSwitchGatherMode(mode) {
 function renderGatherModal() {
   document.querySelectorAll(".gather-mode").forEach(btn => {
     btn.classList.toggle("active", btn.dataset.mode === gatherMode);
+    const max = getGatherMax(btn.dataset.mode);
+    if (btn.dataset.mode === "diverse") btn.textContent = `${max} ชิ้นต่างชนิด`;
+    else btn.textContent = `${max} ชิ้นเดียวกัน`;
   });
 
   const picker = document.getElementById("gather-picker");
@@ -298,7 +368,7 @@ function renderGatherModal() {
 }
 
 function onPickResource(resource) {
-  const maxPicks = gatherMode === "diverse" ? 3 : 2;
+  const maxPicks = getGatherMax(gatherMode);
   if (gatherPicks.length >= maxPicks) return;
 
   if (gatherMode === "diverse") {
@@ -317,7 +387,7 @@ function updateGatherPreview() {
   const preview = document.getElementById("gather-preview");
   preview.textContent = gatherPicks.map(r => RESOURCE_EMOJI[r]).join(" ");
 
-  const maxPicks = gatherMode === "diverse" ? 3 : 2;
+  const maxPicks = getGatherMax(gatherMode);
   document.getElementById("btn-gather-confirm").disabled = gatherPicks.length !== maxPicks;
 }
 
@@ -357,12 +427,55 @@ function handleResourceOverflow(excess) {
     });
 
     document.getElementById("effect-title").textContent = "ทรัพยากรเกิน!";
-    document.getElementById("effect-desc").textContent = `ถือได้สูงสุด ${MAX_RESOURCES} ชิ้น — เลือกทิ้ง ${remaining} ชิ้น`;
+    document.getElementById("effect-desc").textContent = `ถือได้สูงสุด ${getEffectiveMaxResources()} ชิ้น — เลือกทิ้ง ${remaining} ชิ้น`;
     document.getElementById("btn-effect-confirm").style.display = "none";
     showModal("modal-effect");
   };
 
   pickToDiscard();
+}
+
+// ===== Gear =====
+
+let selectedGearId = null;
+
+function onOpenGearModal() {
+  selectedGearId = null;
+  const choices = document.getElementById("gear-choices");
+  choices.innerHTML = "";
+
+  gameState.gearShop.forEach(gear => {
+    const affordable = canAffordGear(gear);
+    const costEmoji = RESOURCES.map(r => RESOURCE_EMOJI[r].repeat(gear.cost[r])).join("");
+    const card = document.createElement("div");
+    card.className = "gear-card" + (affordable ? "" : " unaffordable");
+    card.innerHTML = `
+      <div class="gear-icon">${gear.icon}</div>
+      <div class="gear-name">${gear.name}</div>
+      <div class="gear-desc">${gear.desc}</div>
+      <div class="gear-cost">${costEmoji}</div>
+    `;
+    if (affordable) {
+      card.addEventListener("click", () => {
+        selectedGearId = gear.id;
+        choices.querySelectorAll(".gear-card").forEach(c => c.classList.remove("selected"));
+        card.classList.add("selected");
+        document.getElementById("btn-gear-confirm").disabled = false;
+      });
+    }
+    choices.appendChild(card);
+  });
+
+  document.getElementById("btn-gear-confirm").disabled = true;
+  showModal("modal-gear");
+}
+
+function onConfirmGear() {
+  if (!selectedGearId) return;
+  const gear = purchaseGear(selectedGearId);
+  hideModal("modal-gear");
+  if (!gear) return;
+  finishAction();
 }
 
 // ===== Visit =====
@@ -376,11 +489,52 @@ function onVisitPark() {
 
   gameState.selectedMarketIndex = -1;
 
+  const afterEffects = () => {
+    if (result.hasRefund) {
+      resolveVisitRefund(() => finishAction());
+    } else {
+      finishAction();
+    }
+  };
+
   if (result.instantEffects.length > 0) {
-    resolveInstantEffects(result.instantEffects, 0, () => finishAction());
+    resolveInstantEffects(result.instantEffects, 0, afterEffects);
   } else {
-    finishAction();
+    afterEffects();
   }
+}
+
+function resolveVisitRefund(callback) {
+  let picked = null;
+  const choices = document.getElementById("refund-choices");
+  choices.innerHTML = "";
+
+  RESOURCES.forEach(r => {
+    const btn = document.createElement("div");
+    btn.className = "resource-btn";
+    btn.innerHTML = `${RESOURCE_EMOJI[r]}<span class="res-label">${RESOURCE_NAMES[r]}</span>`;
+    btn.addEventListener("click", () => {
+      picked = r;
+      choices.querySelectorAll(".resource-btn").forEach(b => b.style.border = "2px solid #DDD");
+      btn.style.border = "2px solid var(--north)";
+      document.getElementById("btn-refund-confirm").disabled = false;
+    });
+    choices.appendChild(btn);
+  });
+
+  const confirmBtn = document.getElementById("btn-refund-confirm");
+  confirmBtn.disabled = true;
+  confirmBtn.onclick = () => {
+    if (picked) {
+      gameState.player.resources[picked]++;
+      enforceResourceCap(gameState);
+    }
+    hideModal("modal-refund");
+    render();
+    callback();
+  };
+
+  showModal("modal-refund");
 }
 
 // ===== Instant Effect Resolution =====
@@ -560,6 +714,11 @@ function onGameOver() {
     const status = r.passed ? `✅ +${r.bonus}` : `❌ ${r.current}/${r.target}`;
     rows += `<div class="score-row"><span class="score-label">${r.mission.name}</span><span class="score-value ${cls}">${status}</span></div>`;
   });
+
+  if (gameState.player.gears.length > 0) {
+    const gearNames = gameState.player.gears.map(g => `${g.icon} ${g.name}`).join(", ");
+    rows += `<div class="score-row"><span class="score-label">อุปกรณ์ที่ใช้</span><span class="score-value">${gearNames}</span></div>`;
+  }
 
   rows += `<div class="score-row total"><span class="score-label">รวม</span><span class="score-value">${score.total} แต้ม</span></div>`;
   breakdown.innerHTML = rows;
